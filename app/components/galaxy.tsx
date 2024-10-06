@@ -15,6 +15,7 @@ interface PlanetData {
   atmosphere: string;
   habitability: string;
   discoveryYear: number;
+  texture: string; // Add texture field for each planet
 }
 
 interface StarData {
@@ -27,6 +28,7 @@ interface StarData {
   atmosphere: string;
   habitability: string;
   discoveryYear: number;
+  texture: string; // Add texture field for the star
 }
 
 interface GalaxyVisualizationProps {
@@ -36,15 +38,20 @@ interface GalaxyVisualizationProps {
 const Star = ({
   position,
   planetData,
+  texture,
   onClick,
+  onPlanetClick,
 }: {
   position: [number, number, number];
   planetData: PlanetData[];
+  texture: string; // Pass texture for the star
   onClick: () => void;
+  onPlanetClick: (planet: PlanetData) => void;
 }) => {
-  // Load the texture for the planets
-  const planetTexture = useLoader(TextureLoader, '/gliese_1061_c.png');
+  // Load texture for the star
+  const starTexture = useLoader(TextureLoader, texture);
 
+  // Function to determine planet's position based on its distance from the star
   const getPlanetPosition = (distanceFromStarAU: number, index: number): [number, number, number] => {
     const angle = (index / planetData.length) * 2 * Math.PI; // Spread planets in a circular orbit
     const distanceScale = 5; // Scale factor to fit the planet's orbit within the scene
@@ -57,51 +64,63 @@ const Star = ({
 
   return (
     <>
+      {/* Render the star with texture */}
       <mesh position={position} onClick={onClick}>
         <sphereGeometry args={[0.1, 24, 24]} />
-        <meshBasicMaterial color="#FFD700" />
+        <meshBasicMaterial map={starTexture} /> {/* Apply the loaded texture */}
       </mesh>
-      {planetData.map((planet, index) => (
-        <mesh key={index} position={getPlanetPosition(planet.distanceFromStarAU, index)}>
-          <sphereGeometry args={[0.05, 24, 24]} /> {/* Each planet */}
-          <meshBasicMaterial map={planetTexture} /> {/* Use the loaded texture */}
-        </mesh>
-      ))}
+
+      {/* Render the planets around the star */}
+      {planetData.map((planet, index) => {
+        const planetTexture = useLoader(TextureLoader, planet.texture); // Load texture dynamically for each planet
+
+        return (
+          <mesh
+            key={index}
+            position={getPlanetPosition(planet.distanceFromStarAU, index)}
+            onClick={() => onPlanetClick(planet)}
+          >
+            <sphereGeometry args={[0.05, 24, 24]} />
+            <meshBasicMaterial map={planetTexture} /> {/* Apply the loaded texture */}
+          </mesh>
+        );
+      })}
     </>
   );
 };
 
 const GalaxyVisualization = ({ starData }: GalaxyVisualizationProps) => {
   const [selectedStar, setSelectedStar] = useState<StarDetails | null>(null);
+  const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
 
   const handleStarClick = (star: StarDetails) => {
     setSelectedStar(star);
+    setSelectedPlanet(null); // Clear planet selection
+  };
+
+  const handlePlanetClick = (planet: PlanetData) => {
+    setSelectedPlanet(planet);
+    setSelectedStar(null); // Clear star selection
   };
 
   const handleCloseSidebar = () => {
     setSelectedStar(null);
+    setSelectedPlanet(null);
   };
 
   return (
     <>
-      <Canvas                                 
-        camera={{ position: [0, 0, 20], fov: 75 }}
-        style={{ background: "black" }}
-      >
+      <Canvas camera={{ position: [0, 0, 20], fov: 75 }} style={{ background: "black" }}>
         <OrbitControls enableZoom={true} enableRotate={true} enablePan={true} />
-        <Stars
-          radius={300}
-          depth={50}
-          count={5000}
-          factor={4}
-          saturation={0}
-          fade={true}
-        />
+        <Stars radius={300} depth={50} count={5000} factor={4} saturation={0} fade={true} />
+        
+        {/* Render all stars with their planets */}
         {starData.map((star, index) => (
           <Star
             key={index}
             position={star.starPosition}
-            planetData={star.planetData} // Pass planetData to Star
+            planetData={star.planetData}
+            texture={star.texture} // Pass the star texture
             onClick={() =>
               handleStarClick({
                 name: star.name,
@@ -113,15 +132,33 @@ const GalaxyVisualization = ({ starData }: GalaxyVisualizationProps) => {
                 discoveryYear: star.discoveryYear,
               })
             }
+            onPlanetClick={handlePlanetClick}
           />
         ))}
+        
         <ambientLight intensity={0.5} />
       </Canvas>
-      {selectedStar && (
-        <Sidebar starDetails={selectedStar} onClose={handleCloseSidebar} />
+
+      {/* Display sidebar for the selected star */}
+      {selectedStar && <Sidebar starDetails={selectedStar} onClose={handleCloseSidebar} />}
+      
+      {/* Display sidebar for the selected planet */}
+      {selectedPlanet && (
+        <Sidebar
+          starDetails={{
+            name: selectedPlanet.name,
+            distance: selectedPlanet.distanceFromStarAU,
+            mass: selectedPlanet.mass,
+            radius: selectedPlanet.radius,
+            atmosphere: selectedPlanet.atmosphere,
+            habitability: selectedPlanet.habitability,
+            discoveryYear: selectedPlanet.discoveryYear,
+          }}
+          onClose={handleCloseSidebar}
+        />
       )}
     </>
   );
-};  
+};
 
 export default GalaxyVisualization;

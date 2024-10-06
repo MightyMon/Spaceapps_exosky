@@ -26,7 +26,7 @@
         exit={{ opacity: 0, x: 300 }}
       >
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold">Star Details</h2>
+          <h2 className="text-xl font-bold">Details</h2>
           <motion.button
             onClick={onClose}
             className="text-2xl p-2"
